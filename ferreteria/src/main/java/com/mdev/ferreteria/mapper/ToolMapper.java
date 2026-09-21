@@ -5,7 +5,6 @@ import com.mdev.ferreteria.dto.request.ToolUpdateRequestDTO;
 import com.mdev.ferreteria.dto.response.ToolResponseDTO;
 import com.mdev.ferreteria.model.Tool;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class ToolMapper {
@@ -33,12 +32,10 @@ public class ToolMapper {
         );
     }
 
-    public static List<ToolResponseDTO> toResponseDTOList (List<Tool> tools){
-        List<ToolResponseDTO> result = new ArrayList<>();
-        for(Tool tool : tools){
-            result.add(toResponseDTO(tool));
-        }
-        return result;
+    public static List<ToolResponseDTO> toResponseDTOList(List<Tool> tools) {
+        return tools.stream()
+                .map(ToolMapper::toResponseDTO)
+                .toList();
     }
 
     public static void applyUpdate(Tool tool, ToolUpdateRequestDTO dto) {

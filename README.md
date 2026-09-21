@@ -6,8 +6,8 @@ capas (Controller → Service → Repository) con separación estricta entre ent
 persistencia y contrato de API mediante **DTOs**.
 
 Proyecto en evolución continua: nació como ejercicio / prueba técnica y se usa como base de
-práctica personal para ir sumando buenas prácticas (seguridad, testing, Docker,
-deploy) a medida que se incorporan a mi formación.
+práctica personal para ir sumando buenas prácticas (manejo de excepciones, programación
+funcional, testing) a medida que se incorporan a mi formación.
 
 ![Java](https://img.shields.io/badge/Java-25-orange?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4-brightgreen?logo=springboot&logoColor=white)
@@ -15,7 +15,13 @@ deploy) a medida que se incorporan a mi formación.
 ![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-prod-336791?logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![Error Handling](https://img.shields.io/badge/Error%20Handling-RFC%207807-blueviolet)
 ![Status](https://img.shields.io/badge/status-en%20desarrollo-yellow)
+
+**🚀 API en vivo**: https://api-ferreteria-prueba-tecnica-todocode.onrender.com
+_(plan gratuito de Render — la primera petición tras un rato sin tráfico puede tardar ~30-50s en responder mientras la instancia "despierta")_
+
+**🖥️ Demo funcionando**: https://mdev-repos.github.io/front_ferreteria__prueba_tecnica_todocode/
 
 ---
 
@@ -54,6 +60,7 @@ completo mediante una API REST con persistencia en una base de datos relacional.
 | ORM | Hibernate |
 | Base de datos | MySQL (desarrollo) · PostgreSQL (producción) — ver [Perfiles y bases de datos](#perfiles-y-bases-de-datos) |
 | Validación | Jakarta Bean Validation |
+| Manejo de errores | `ProblemDetail` (RFC 7807) + `@RestControllerAdvice` centralizado |
 | Build | Maven |
 | Reducción de boilerplate | Lombok |
 
@@ -72,7 +79,7 @@ Controller        → recibe/devuelve DTOs, gestiona status codes (ResponseEntit
    ▼
 Service            → lógica de negocio, orquesta Mapper + Repository
    │
-   ├─▶ Mapper       → traduce Entity ⇄ DTO
+   ├─▶ Mapper       → traduce Entity ⇄ DTO (con Streams para las colecciones)
    │
    ▼
 Repository (Spring Data JPA) → persistencia
@@ -81,6 +88,11 @@ Repository (Spring Data JPA) → persistencia
 MySQL (dev) / PostgreSQL (prod)
 ```
 
+Cualquier excepción lanzada en Service o Repository es interceptada por un
+`GlobalExceptionHandler` (`@RestControllerAdvice`) que la traduce a una respuesta
+`ProblemDetail` (RFC 7807) con el status code correspondiente — el Controller
+nunca maneja errores directamente.
+
 ```
 src/main/java/com/mdev/ferreteria
 ├── config          # configuración transversal (CORS, etc.)
@@ -88,6 +100,7 @@ src/main/java/com/mdev/ferreteria
 ├── dto
 │   ├── request        # contratos de entrada (records, con validación)
 │   └── response         # contratos de salida (records)
+├── exception          # excepciones de negocio + GlobalExceptionHandler
 ├── mapper             # Entity ⇄ DTO
 ├── model
 │   └── enums
@@ -166,6 +179,45 @@ Base path: `/tools`
 ```
 
 Solo el campo enviado se modifica; el resto de la herramienta queda intacto.
+
+</details>
+
+<details>
+<summary><strong>Ejemplo — error de validación</strong></summary>
+
+`POST /tools/create`
+
+```json
+{
+  "name": "",
+  "brand": "",
+  "price": -5,
+  "stock": -1
+}
+```
+
+`400 Bad Request`
+
+```json
+{
+  "type": "about:blank",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Error de validación",
+  "instance": "/tools/create",
+  "errores": {
+    "name": "no debe estar vacío",
+    "brand": "no debe estar vacío",
+    "price": "debe ser mayor que 0",
+    "stock": "debe ser mayor que o igual a 0",
+    "category": "no debe ser nulo"
+  }
+}
+```
+
+Todos los errores de la API (validación, recurso no encontrado, JSON malformado, etc.)
+siguen el formato estándar [`ProblemDetail`](https://www.rfc-editor.org/rfc/rfc7807) —
+mismo contrato de error en toda la aplicación.
 
 </details>
 
@@ -265,10 +317,9 @@ configuración manual — dos formas de usarlo:
 - [x] CORS configurado por ambiente
 - [x] Dockerización (`Dockerfile` multi-stage + `docker-compose.yml`)
 - [x] Perfiles por ambiente — MySQL en desarrollo, PostgreSQL en producción
-- [ ] Deploy (backend + frontend)
-- [ ] Manejo centralizado de excepciones (`@ControllerAdvice`)
-- [ ] Refactor con programación funcional
-- [ ] Spring Security (autenticación/autorización)
+- [x] Deploy (backend en Render + PostgreSQL gestionado, frontend en GitHub Pages)
+- [x] Manejo centralizado de excepciones (`@ControllerAdvice`)
+- [x] Refactor con programación funcional
 - [ ] Tests unitarios e de integración
 
 ## Autor

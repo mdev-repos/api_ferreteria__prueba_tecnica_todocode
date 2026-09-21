@@ -3,6 +3,7 @@ package com.mdev.ferreteria.service.impl;
 import com.mdev.ferreteria.dto.request.ToolCreateRequestDTO;
 import com.mdev.ferreteria.dto.request.ToolUpdateRequestDTO;
 import com.mdev.ferreteria.dto.response.ToolResponseDTO;
+import com.mdev.ferreteria.exception.ResourceNotFoundException;
 import com.mdev.ferreteria.mapper.ToolMapper;
 import com.mdev.ferreteria.model.Tool;
 import com.mdev.ferreteria.repository.IToolRepository;
@@ -28,10 +29,9 @@ public class ToolService implements IToolService {
 
     @Override
     public ToolResponseDTO getToolById(Long id) {
-        Tool tool = toolRepo.findById(id).orElse(null);
-        if(tool == null){
-            return null;
-        }
+        Tool tool = toolRepo.findById(id)
+                .orElseThrow(()-> new ResourceNotFoundException("Herramienta no encontrada con el ID: " + id));
+
         return ToolMapper.toResponseDTO(tool);
     }
 
@@ -43,10 +43,9 @@ public class ToolService implements IToolService {
 
     @Override
     public ToolResponseDTO updateTool(Long id, ToolUpdateRequestDTO request) {
-        Tool tool = toolRepo.findById(id).orElse(null);
-        if (tool == null) {
-            return null;
-        }
+        Tool tool = toolRepo.findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("Herramienta no encontrada con el ID: " + id));
+
         ToolMapper.applyUpdate(tool, request);
         Tool saved = toolRepo.save(tool);
         return ToolMapper.toResponseDTO(saved);
@@ -54,6 +53,8 @@ public class ToolService implements IToolService {
 
     @Override
     public void deleteToolById(Long id) {
-        toolRepo.deleteById(id);
+        Tool tool = toolRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Herramienta no encontrada con el ID: " + id));
+        toolRepo.delete(tool);
     }
 }

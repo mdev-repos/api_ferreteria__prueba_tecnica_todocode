@@ -30,9 +30,6 @@ public class ToolController {
     @GetMapping("/{id}")
     public ResponseEntity<ToolResponseDTO> getToolById(@PathVariable Long id) {
         ToolResponseDTO tool = toolServ.getToolById(id);
-        if (tool == null) {
-            return ResponseEntity.notFound().build();
-        }
         return ResponseEntity.ok(tool);
     }
 
@@ -46,9 +43,6 @@ public class ToolController {
     public ResponseEntity<ToolResponseDTO> updateTool(@PathVariable Long id,
                                                       @Valid @RequestBody ToolUpdateRequestDTO request) {
         ToolResponseDTO updated = toolServ.updateTool(id, request);
-        if (updated == null) {
-            return ResponseEntity.notFound().build();
-        }
         return ResponseEntity.ok(updated);
     }
 
