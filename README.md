@@ -1,13 +1,19 @@
-# 🔧 Ferretería API
+<div align="center">
+  <img src="./assets/ferreteria-icon.svg" width="120" alt="Ferretería API" />
+
+  # Ferretería API
+</div>
 
 API REST para la gestión de inventario de una ferretería — alta, consulta, actualización
 y baja de herramientas. Construida con **Spring Boot** siguiendo una arquitectura en
 capas (Controller → Service → Repository) con separación estricta entre entidades de
 persistencia y contrato de API mediante **DTOs**.
 
-Proyecto en evolución continua: nació como ejercicio / prueba técnica y se usa como base de
-práctica personal para ir sumando buenas prácticas (manejo de excepciones, programación
-funcional, testing) a medida que se incorporan a mi formación.
+Proyecto formativo: nació como ejercicio / prueba técnica y fue mi base de práctica para ir
+sumando buenas prácticas (manejo de excepciones, programación funcional, Docker). Hoy se
+ejecuta en local; el despliegue en la nube se dio de baja porque
+[Bazar](https://github.com/mdev-repos/api_bazar__ejercicio_curso_todocode) retoma la idea con
+un modelo más complejo y es el que mantiene el despliegue de punta a punta.
 
 ![Java](https://img.shields.io/badge/Java-25-orange?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4-brightgreen?logo=springboot&logoColor=white)
@@ -16,12 +22,11 @@ funcional, testing) a medida que se incorporan a mi formación.
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-prod-336791?logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Error Handling](https://img.shields.io/badge/Error%20Handling-RFC%207807-blueviolet)
-![Status](https://img.shields.io/badge/status-en%20desarrollo-yellow)
+![Status](https://img.shields.io/badge/status-proyecto%20formativo-blue)
 
-**🚀 API en vivo**: https://api-ferreteria-prueba-tecnica-todocode.onrender.com
-_(plan gratuito de Render — la primera petición tras un rato sin tráfico puede tardar ~30-50s en responder mientras la instancia "despierta")_
-
-**🖥️ Demo funcionando**: https://mdev-repos.github.io/front_ferreteria__prueba_tecnica_todocode/
+> **Despliegue dado de baja.** La API y su base de datos en la nube ya no están activas. El
+> proyecto se levanta en local en pocos minutos, con Docker Compose o a mano — ver
+> [Cómo correrlo en local](#cómo-correrlo-en-local).
 
 ---
 
@@ -58,7 +63,7 @@ completo mediante una API REST con persistencia en una base de datos relacional.
 | Lenguaje | Java 25 |
 | Framework | Spring Boot 4 (Spring Web, Spring Data JPA) |
 | ORM | Hibernate |
-| Base de datos | MySQL (desarrollo) · PostgreSQL (producción) — ver [Perfiles y bases de datos](#perfiles-y-bases-de-datos) |
+| Base de datos | MySQL (perfil `dev`, el que se usa en local) · PostgreSQL (perfil `prod`, sin despliegue activo) — ver [Perfiles y bases de datos](#perfiles-y-bases-de-datos) |
 | Validación | Jakarta Bean Validation |
 | Manejo de errores | `ProblemDetail` (RFC 7807) + `@RestControllerAdvice` centralizado |
 | Build | Maven |
@@ -223,36 +228,64 @@ mismo contrato de error en toda la aplicación.
 
 ## Cómo correrlo en local
 
+Hay dos formas: con Docker Compose (la más simple, no requiere instalar nada más) o a mano.
+En ambas la API queda en **`http://localhost:8080`** y arranca con el perfil `dev` (MySQL).
+
 ### Opción A — Docker Compose (recomendado)
 
-**Prerrequisitos**: Docker.
+**Prerrequisitos**: Docker con el plugin Compose.
 
 ```bash
 cd ferreteria
-cp .env.example .env   # completar valores si hace falta
+cp .env.example .env     # define DB_PASSWORD y CORS_ALLOWED_ORIGINS; cambiá la contraseña
 docker compose up -d --build
 ```
 
-Levanta la API **y** su base de datos (MySQL) juntas, con las variables de entorno ya resueltas. La API queda disponible en `http://localhost:8080`.
+Levanta la API **y** su base de datos MySQL juntas, ya conectadas entre sí:
+
+| Servicio | Puerto en tu máquina | Detalle |
+|---|---|---|
+| `api` | `8080` | Se construye con el `Dockerfile` multi-stage (compila con Maven y corre sobre una imagen JRE) |
+| `mysql` | `3307` | Base `todocode_ferreteria`; los datos persisten en un volumen de Docker |
+
+La API espera a que MySQL pase su *healthcheck* antes de iniciar, por eso la primera
+vez puede tardar un minuto. Para ver los logs: `docker compose logs -f api`.
+
+Para detenerlo: `docker compose down` (conserva los datos) o `docker compose down -v`
+(borra también el volumen y arranca de cero la próxima vez).
 
 ### Opción B — manual, sin Docker
 
-Para quien prefiera (o necesite) correrlo "a la antigua", sin contenedores.
-
-**Prerrequisitos**: JDK 25, Maven, MySQL corriendo en `localhost:3306`.
+**Prerrequisitos**: JDK 25, Maven (o el wrapper `./mvnw` incluido) y MySQL corriendo en
+`localhost:3306`.
 
 ```bash
 # 1. Crear la base de datos
 mysql -u root -p -e "CREATE DATABASE todocode_ferreteria;"
 
-# 2. Configurar credenciales (ver sección Configuración)
+# 2. Si tu MySQL tiene contraseña, exportala (los defaults están en la sección Configuración)
+export DB_PASSWORD=tu_contraseña
 
 # 3. Levantar la aplicación
 cd ferreteria
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
-Ambas opciones arrancan con el perfil `dev` (MySQL) por defecto — ver la sección siguiente.
+### Probar que funciona
+
+Con cualquiera de las dos opciones, crear y listar herramientas:
+
+```bash
+curl -X POST http://localhost:8080/tools/create \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Taladro percutor","brand":"Bosch","category":"POWER_TOOL","price":45000,"stock":12,"description":"650W"}'
+
+curl http://localhost:8080/tools/all
+```
+
+El repositorio incluye también una colección de Postman
+([`FerreteriaAPI.postman_collection.json`](FerreteriaAPI.postman_collection.json)) con todos
+los endpoints, para importarla y probarlos desde ahí.
 
 ## Perfiles y bases de datos
 
@@ -261,7 +294,7 @@ El proyecto corre sobre **dos motores de base de datos distintos**, según el pe
 | Perfil | Motor | Uso previsto | `ddl-auto` |
 |---|---|---|---|
 | `dev` (default) | MySQL | Desarrollo local, con o sin Docker | `update` |
-| `prod` | PostgreSQL | Despliegue | `validate` |
+| `prod` | PostgreSQL | Despliegue (hoy sin instancia activa) | `validate` |
 
 Ambos drivers JDBC (`mysql-connector-j` y `postgresql`) conviven en el `pom.xml` sin conflicto — Spring Boot resuelve cuál usar según el prefijo de la URL de conexión (`jdbc:mysql://` o `jdbc:postgresql://`), no según qué esté instalado.
 
@@ -284,7 +317,7 @@ sin necesidad de gitignorearlo.
 | `spring.datasource.url` | `DB_URL` | `jdbc:mysql://localhost:3306/todocode_ferreteria...` |
 | `spring.datasource.username` | `DB_USERNAME` | `root` |
 | `spring.datasource.password` | `DB_PASSWORD` | *(vacío)* |
-| `app.cors.allowed-origins` | `CORS_ALLOWED_ORIGINS` | `http://localhost:5500,http://127.0.0.1:5500` |
+| `app.cors.allowed-origins` | `CORS_ALLOWED_ORIGINS` | `http://localhost:5500,http://127.0.0.1:5500,https://mdev-repos.github.io` |
 
 El perfil `prod` no define defaults para estas variables a propósito: si falta alguna, la aplicación falla al arrancar en vez de conectarse silenciosamente a un lugar equivocado.
 
@@ -296,18 +329,10 @@ Docker) con los valores de producción — sin tocar código ni el archivo versi
 ## Proyecto relacionado
 
 Frontend de práctica (vanilla HTML/CSS/JS) que consume esta API:
-[`front_ferreteria__prueba_tecnica_todocode`](../front_ferreteria__prueba_tecnica_todocode).
-Detecta solo desde dónde se lo sirve y elige el backend correspondiente, sin ninguna
-configuración manual — dos formas de usarlo:
-
-- **En local**: clonar el repo del front y levantarlo con un servidor estático propio
-  (ver su README) junto con esta API corriendo en la misma máquina (Docker Compose o
-  manual, ver [Cómo correrlo en local](#cómo-correrlo-en-local)) → el front va a
-  consumir ese backend local automáticamente.
-- **Ya funcionando, sin instalar nada**:
-  **https://mdev-repos.github.io/front_ferreteria__prueba_tecnica_todocode/** → el
-  front consume directamente el backend ya desplegado en producción (Render).
-
+[`front_ferreteria__prueba_tecnica_todocode`](https://github.com/mdev-repos/front_ferreteria__prueba_tecnica_todocode).
+Para usarlo, levantá esta API en local (ver [Cómo correrlo en local](#cómo-correrlo-en-local)),
+clonar el repo del front y servirlo con un servidor estático propio (su README explica
+cómo): detecta que corre en `localhost` y consume automáticamente el backend local.
 
 ## Roadmap
 
@@ -317,7 +342,7 @@ configuración manual — dos formas de usarlo:
 - [x] CORS configurado por ambiente
 - [x] Dockerización (`Dockerfile` multi-stage + `docker-compose.yml`)
 - [x] Perfiles por ambiente — MySQL en desarrollo, PostgreSQL en producción
-- [x] Deploy (backend en Render + PostgreSQL gestionado, frontend en GitHub Pages)
+- [x] Deploy de punta a punta (Render + PostgreSQL gestionado + GitHub Pages) — dado de baja, el proyecto se ejecuta en local
 - [x] Manejo centralizado de excepciones (`@ControllerAdvice`)
 - [x] Refactor con programación funcional
 - [ ] Tests unitarios e de integración
